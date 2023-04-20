@@ -1,17 +1,46 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import './index.css';
-import App from './App';
-import reportWebVitals from './reportWebVitals';
+import { render } from "react-dom";
+import React from "react";
+import { action } from "mobx";
+import UniversalRouter from "universal-router";
+import history from "./history.js";
+import { configure } from "mobx";
+import routes from "./routes.js";
+import store from "./store.js";
+import "./index.css";
+import * as serviceWorkerRegistration from "./serviceWorkerRegistration.js";
 
-const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
+configure({
+  enforceActions: "always",
+  computedRequiresReaction: true,
+  reactionRequiresObservable: true,
+  observableRequiresReaction: true,
+  disableErrorBoundaries: false,
+});
 
-// If you want to start measuring performance in your app, pass a function
-// to log results (for example: reportWebVitals(console.log))
-// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
-reportWebVitals();
+const context = {
+  mystore: store,
+};
+
+const router = new UniversalRouter(routes, { context });
+const root = document.getElementById("root");
+
+async function renderRoute(location) {
+  try {
+    const page = await router.resolve({
+      pathname: location.pathname,
+    });
+
+    if (page.redirect) {
+      return history.push({ pathname: page.redirect, search: "" });
+    }
+    return render(<React.StrictMode>{page}</React.StrictMode>, root);
+  } catch (err) {
+    return render(<p>Wrong</p>, root);
+  }
+}
+
+history.push("/");
+action(() => store.initCart())();
+history.listen(({ location }) => renderRoute(location));
+renderRoute(history.location);
+serviceWorkerRegistration.register();
